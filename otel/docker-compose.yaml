@@ -1,0 +1,23 @@
+services:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    ports:
+      - "4317:4317"
+      - "13132:13132"
+    command: [nginx-debug, '-g', 'daemon off;']
+    volumes:
+      - ./tls.conf:/etc/nginx/conf.d/tls.conf
+      - ./server.crt:/tmp/server.crt
+      - ./server.key:/tmp/server.key
+  otel-lb:
+    image: otel/opentelemetry-collector-contrib:0.100.0-healthcheck
+    container_name: otlp
+    command: ["--config=/etc/otel-lb-config.yaml"]
+    ports:
+      - "4317"   # grpc
+      - "4318"   # http
+      - "13132:13132" # grpc health_check
+      - "13133:13133" # http health_check
+    volumes:
+      - ./otel-lb-config.yaml:/etc/otel-lb-config.yaml

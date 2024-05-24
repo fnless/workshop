@@ -1,0 +1,117 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    const_labels:
+      label1: value1
+
+  debug:
+
+  zipkin:
+    endpoint: "http://zipkin-all-in-one:9411/api/v2/spans"
+    format: proto
+
+  otlp:
+    endpoint: jaeger-all-in-one:4317
+    tls:
+      insecure: true
+    sending_queue:
+      enabled: true
+      num_consumers: 100
+      queue_size: 100000
+
+processors:
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 100000
+    expected_new_traces_per_sec: 100000
+    policies: [
+        {
+          name: "mercury-latency",
+          type: and,
+          and: {
+            and_sub_policy: [
+              {
+                name: "service-name-filter",
+                type: string_attribute,
+                string_attribute: { key: "service.name", values: ["mercury"], enabled_regex_matching: false, invert_match: false },
+              },
+              {
+                # 请求耗时高，则完整采集
+                name: "latency-filter",
+                type: latency,
+                latency: {threshold_ms: 50}
+              },
+            ],
+          },
+        },
+        # {
+        #   name: "exclude",
+        #   type: string_attribute,
+        #   string_attribute: { key: "otel.status_description", values: [".*(USER_NOT_FOUND).*"], enabled_regex_matching: true, invert_match: false },
+        # },
+        # {
+        #   name: "5xx http",
+        #   type: numeric_attribute,
+        #   numeric_attribute: { key: "http.status_code", min_value: 500, },
+        # },
+        # {
+        #   # 发生错误则完整采集
+        #   name: "error",
+        #   type: and,
+        #   and: {
+        #     and_sub_policy: [
+        #       {
+        #         name: "exclude",
+        #         type: string_attribute,
+        #         string_attribute: { key: "otel.status_description", values: [".*(USER_NOT_FOUND).*"], enabled_regex_matching: true, invert_match: true },
+        #       },
+        #       {
+        #         name: "error status",
+        #         type: status_code,
+        #         status_code: { status_codes: [ERROR] },
+        #       },
+        #     ],
+        #   },
+        # },
+        # {
+        #   # 请求耗时高，则完整采集
+        #   name: latency-policy,
+        #   type: latency,
+        #   latency: {threshold_ms: 100}
+        # },
+        # {
+        #   # 采样优先级高的完整采集
+        #   name: sample_with_high_priority,
+        #   type: numeric_attribute,
+        #   numeric_attribute: { key: "sampling.priority", min_value: 1, max_value: 1 }
+        # },
+      ]
+  batch:
+
+extensions:
+  health_check:
+  pprof:
+    endpoint: :1888
+  zpages:
+    endpoint: :55679
+
+service:
+  telemetry:
+    logs:
+      level: "debug"
+  extensions: [pprof, zpages, health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [tail_sampling]
+      exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [debug, prometheus]
+

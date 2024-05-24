@@ -1,0 +1,71 @@
+services:
+  elasticsearch:
+    image: elasticsearch:7.16.1
+    container_name: es
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: "-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    healthcheck:
+      test: ["CMD-SHELL", "curl --silent --fail localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+
+  jaeger-collector:
+    image: jaegertracing/jaeger-collector
+    command:
+      - "--collector.otlp.enabled=true"
+      - "--log-level=debug"
+      - "--es.index-rollover-frequency-spans=hour"
+    ports:
+      - 4318:4318
+      - 14250:14250
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:14269/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  jaeger-query:
+    image: jaegertracing/jaeger-query
+    command:
+      - "--log-level=debug"
+      - "--es.index-rollover-frequency-spans=hour"
+    environment:
+      - SPAN_STORAGE_TYPE=elasticsearch
+      - ES_SERVER_URLS=http://elasticsearch:9200
+    ports:
+      - "16686:16686"
+      - "16687"
+    restart: on-failure
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:16687/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  hotrod:
+    image: jaegertracing/example-hotrod:1.56
+    # To run the latest trunk build, find the tag at Docker Hub and use the line below
+    # https://hub.docker.com/r/jaegertracing/example-hotrod-snapshot/tags
+    #image: jaegertracing/example-hotrod-snapshot:0ab8f2fcb12ff0d10830c1ee3bb52b745522db6c
+    ports:
+      - "8080:8080"
+      - "8083:8083"
+    command: ["all"]
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger-collector:4318
+    depends_on:
+      - jaeger-collector
