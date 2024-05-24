@@ -11,13 +11,13 @@ services:
       - ./server.crt:/tmp/server.crt
       - ./server.key:/tmp/server.key
   otel-lb:
-    image: slic/opentelemetry-collector-contrib:0.100.0-healthcheck
+    image: otel/opentelemetry-collector-contrib:0.95.0
     container_name: otlp
     command: ["--config=/etc/otel-lb-config.yaml"]
     ports:
       - "4317"   # grpc
       - "4318"   # http
-      - "13132:13132" # grpc health_check
-      - "13133:13133" # http health_check
+      - "13132" # grpc health_check
+      - "13133" # http health_check
     volumes:
       - ./otel-lb-config.yaml:/etc/otel-lb-config.yaml
