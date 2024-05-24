@@ -11,7 +11,7 @@ services:
       - ./server.crt:/tmp/server.crt
       - ./server.key:/tmp/server.key
   otel-lb:
-    image: otel/opentelemetry-collector-contrib:0.100.0-healthcheck
+    image: slic/opentelemetry-collector-contrib:0.100.0-healthcheck
     container_name: otlp
     command: ["--config=/etc/otel-lb-config.yaml"]
     ports:
