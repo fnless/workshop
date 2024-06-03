@@ -4,20 +4,18 @@ services:
     container_name: nginx
     ports:
       - "4317:4317"
-      - "13132:13132"
+      - "4318:4318"
     command: [nginx-debug, '-g', 'daemon off;']
     volumes:
       - ./tls.conf:/etc/nginx/conf.d/tls.conf
       - ./server.crt:/tmp/server.crt
       - ./server.key:/tmp/server.key
-  otel-lb:
+  otel:
     image: otel/opentelemetry-collector-contrib:0.95.0
     container_name: otlp
-    command: ["--config=/etc/otel-lb-config.yaml"]
+    command: ["--config=/etc/otel-sample.yaml"]
     ports:
       - "4317"   # grpc
       - "4318"   # http
-      - "13132" # grpc health_check
-      - "13133" # http health_check
     volumes:
-      - ./otel-lb-config.yaml:/etc/otel-lb-config.yaml
+      - ./otel-sample.yaml:/etc/otel-sample.yaml
